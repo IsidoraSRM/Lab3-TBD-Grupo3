@@ -114,26 +114,14 @@
           <label for="register-confirm" :class="{ 'label-float': passwordConfirmation }">Confirmar Contraseña</label>
         </div>
 
-        <div class="input-group">
-          <input
-            type="number"
-            step="any"
-            id="register-latitud"
-            v-model="registerData.latitud"
-            required
-          />
-          <label for="register-latitud" :class="{ 'label-float': registerData.latitud }">Latitud</label>
-        </div>
-
-        <div class="input-group">
-          <input
-            type="number"
-            step="any"
-            id="register-longitud"
-            v-model="registerData.longitud"
-            required
-          />
-          <label for="register-longitud" :class="{ 'label-float': registerData.longitud }">Longitud</label>
+        <!-- Mapa para seleccionar ubicación -->
+        <div class="map-section">
+          <h3>Selecciona tu ubicación en el mapa</h3>
+          <p class="map-instruction">Haz clic en el mapa para marcar tu ubicación</p>
+          <div class="map-container" id="map" ref="mapContainer"></div>
+          <div class="coordinates-display" v-if="registerData.latitud && registerData.longitud">
+            <span>📍 Lat: {{ parseFloat(registerData.latitud).toFixed(6) }}, Lng: {{ parseFloat(registerData.longitud).toFixed(6) }}</span>
+          </div>
         </div>
 
 
@@ -154,21 +142,28 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { authService } from '../services/authService';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 export default {
   name: 'LoginView',
   setup() {
     const router = useRouter();
     const cardRef = ref(null);
+    const mapContainer = ref(null);
     const isLogin = ref(true);
     const loading = ref(false);
     const errorMessage = ref('');
     const email = ref('');
     const password = ref('');
+    
+    // Variables del mapa
+    let map = null;
+    let marker = null;
 
     const registerData = ref({
       rut: '',
@@ -182,6 +177,71 @@ export default {
     });
 
     const passwordConfirmation = ref('');
+
+    // Funciones del mapa
+    const initMap = async () => {
+      await nextTick();
+      if (!mapContainer.value) return;
+      
+      // Fix para los iconos de Leaflet
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      });
+      
+      // Inicializar el mapa centrado en Chile
+      map = L.map(mapContainer.value).setView([-33.4489, -70.6693], 10);
+      
+      // Agregar tiles del mapa
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+      
+      // Manejar clics en el mapa
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        
+        // Actualizar las coordenadas
+        registerData.value.latitud = lat.toString();
+        registerData.value.longitud = lng.toString();
+        
+        // Remover marcador anterior si existe
+        if (marker) {
+          map.removeLayer(marker);
+        }
+        
+        // Agregar nuevo marcador
+        marker = L.marker([lat, lng]).addTo(map);
+      });
+      
+      // Intentar obtener la ubicación actual del usuario
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            map.setView([latitude, longitude], 13);
+            
+            // Agregar marcador en la ubicación actual
+            registerData.value.latitud = latitude.toString();
+            registerData.value.longitud = longitude.toString();
+            marker = L.marker([latitude, longitude]).addTo(map);
+          },
+          (error) => {
+            console.log('No se pudo obtener la ubicación:', error);
+          }
+        );
+      }
+    };
+
+    const destroyMap = () => {
+      if (map) {
+        map.remove();
+        map = null;
+        marker = null;
+      }
+    };
 
     const loginUser = async () => {
       if (!email.value || !password.value) {
@@ -211,6 +271,11 @@ export default {
     const registerUser = async () => {
       if (registerData.value.password !== passwordConfirmation.value) {
         errorMessage.value = 'Las contraseñas no coinciden';
+        return;
+      }
+      
+      if (!registerData.value.latitud || !registerData.value.longitud) {
+        errorMessage.value = 'Por favor selecciona tu ubicación en el mapa';
         return;
       }
       
@@ -244,9 +309,18 @@ export default {
       }
     };
 
-    const toggleForm = () => {
+    const toggleForm = async () => {
       isLogin.value = !isLogin.value;
       errorMessage.value = '';
+      
+      if (!isLogin.value) {
+        // Si cambiamos al formulario de registro, inicializar el mapa
+        await nextTick();
+        setTimeout(initMap, 100);
+      } else {
+        // Si cambiamos al formulario de login, destruir el mapa
+        destroyMap();
+      }
     };
 
     const clearRegisterForm = () => {
@@ -261,6 +335,12 @@ export default {
         longitud: ''     // <- NUEVO
       };
       passwordConfirmation.value = '';
+      
+      // Limpiar marcador del mapa
+      if (marker && map) {
+        map.removeLayer(marker);
+        marker = null;
+      }
     };
 
     onMounted(() => {
@@ -292,14 +372,21 @@ export default {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseleave', handleMouseLeave);
 
+      // Inicializar mapa si estamos en modo registro
+      if (!isLogin.value) {
+        setTimeout(initMap, 100);
+      }
+
       onUnmounted(() => {
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseleave', handleMouseLeave);
+        destroyMap();
       });
     });
 
     return {
       cardRef,
+      mapContainer,
       isLogin,
       loading,
       errorMessage,
@@ -582,5 +669,54 @@ body {
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 20px var(--blue-glow); }
   50% { box-shadow: 0 0 30px var(--blue-glow), 0 0 40px var(--blue-glow); }
+}
+
+/* Estilos para el mapa */
+.map-section {
+  margin: 25px 0;
+  text-align: center;
+}
+
+.map-section h3 {
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  text-shadow: 0 0 10px var(--blue-glow);
+}
+
+.map-instruction {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+}
+
+.map-container {
+  height: 300px;
+  width: 100%;
+  border-radius: 15px;
+  overflow: hidden;
+  border: 2px solid var(--border-blue);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  margin-bottom: 15px;
+}
+
+.coordinates-display {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary-blue);
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-blue);
+  margin-top: 10px;
+}
+
+.coordinates-display span {
+  display: inline-block;
+  font-family: 'Courier New', monospace;
+}
+
+/* Estilos para los iconos de Leaflet */
+.leaflet-default-icon-path {
+  background-image: url('https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png');
 }
 </style>

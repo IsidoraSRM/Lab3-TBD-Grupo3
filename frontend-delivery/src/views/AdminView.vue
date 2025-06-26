@@ -33,8 +33,14 @@
             <option value="12">[LAB 2] Clientes a más de 5km de cualquier empresa/farmacia</option>
             <option value="13">[LAB 2] ¿Cliente está en zona de cobertura? (buffer 1km)</option>
             <option value="14">[LAB 2] Distancia recorrida por repartidor en el último mes</option>
-            <option value="10">[EXTRA] Zona a la que pertenece un cliente</option>
-            <option value="11">[EXTRA] Zonas con alta densidad de pedidos</option>
+            <option value="10">[LAB 2 EXTRA] Zona a la que pertenece un cliente</option>
+            <option value="11">[LAB 2 EXTRA] Zonas con alta densidad de pedidos</option>
+            <option value="12">[LAB 3] Obtener el promedio de puntuación por empresa o farmacia</option>
+            <option value="13">[LAB 3] Listar las opiniones que contengan palabras clave como 'demora' o 'error'.</option>
+            <option value="14">[LAB 3] Contar cuántos pedidos tienen más de 3 cambios de estado en menos de 10 minutos.</option>
+            <option value="15">[LAB 3] Analizar las rutas más frecuentes de repartidores en los últimos 7 días.</option>
+            <option value="16">[LAB 3] Detectar clientes que realizaron búsquedas sin concretar pedidos (navegación sin compra).</option>
+            <option value="17">[LAB 3] Agrupar opiniones por hora del día para analizar patrones de satisfacción.</option>
           </select>
           <input v-if="selectedQuery === '7'" v-model="empresaInput" placeholder="Nombre de la empresa" class="empresa-input" style="margin-left: 1rem; min-width: 200px;" />
           <input v-if="selectedQuery === '10' || selectedQuery === '13'" v-model="clienteIdInput" placeholder="ID del cliente" class="empresa-input" style="margin-left: 1rem; min-width: 200px;" />
@@ -55,11 +61,24 @@
                 <thead>
                   <tr>
                     <th v-for="(header, index) in queryHeaders" :key="index">{{ header }}</th>
+                    <th v-if="hasGeoData()" class="action-header">Ver en Mapa</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="(row, rowIndex) in queryResults" :key="rowIndex">
-                    <td v-for="(cell, cellIndex) in row" :key="cellIndex">{{ cell }}</td>
+                    <td v-for="(cell, cellIndex) in row" :key="cellIndex">
+                      {{ cell }}
+                    </td>
+                    <!-- Columna "Ver" para consultas georreferenciadas -->
+                    <td v-if="hasGeoData()" class="action-cell">
+                      <button 
+                        class="view-map-btn" 
+                        @click="openMapModal(row, rowIndex)"
+                        :disabled="!hasValidCoordinates(row)"
+                      >
+                        <i class="fas fa-map-marker-alt"></i> Ver
+                      </button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -119,6 +138,25 @@
     </div>
   </div>
     </div>
+    
+    <!-- Modal del mapa -->
+    <div v-if="showMapModal" class="map-modal-overlay" @click="closeMapModal">
+      <div class="map-modal" @click.stop>
+        <div class="map-modal-header">
+          <h3>{{ modalMapData?.title || 'Ubicación en el mapa' }}</h3>
+          <button class="close-btn" @click="closeMapModal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="map-modal-body">
+          <div class="map-container" ref="modalMapContainer"></div>
+          <div v-if="modalMapData?.info" class="location-info">
+            <p><strong>{{ modalMapData.info }}</strong></p>
+            <p>Coordenadas: {{ modalMapData.lat }}, {{ modalMapData.lng }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -132,6 +170,8 @@ import ClientSummary from '@/components/ClientSummary.vue';
 import TopCompany from '@/components/TopCompany.vue';
 import orderService from '@/services/orderService';
 import empresaService from '@/services/empresaService';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 
 export default {
@@ -182,6 +222,10 @@ export default {
       ],
       empresaInput: '',
       clienteIdInput: '',
+      // Variables para el modal del mapa
+      showMapModal: false,
+      modalMapData: null,
+      mapInstance: null,
     }
   },
   methods: {
@@ -456,7 +500,95 @@ export default {
 
     dismissNotification(id) {
       this.notifications = this.notifications.filter(notification => notification.id !== id);
+    },
+
+    // Métodos para el mapa
+    hasGeoData() {
+      // Consultas que contienen datos georreferenciados con coordenadas válidas
+      return ['7', '11'].includes(this.selectedQuery);
+    },
+
+    hasValidCoordinates(row) {
+      if (this.selectedQuery === '7') {
+        // Query 7: [Dirección, Distancia, Latitud, Longitud]
+        return row[2] && row[3] && row[2] !== '--' && row[3] !== '--';
+      } else if (this.selectedQuery === '11') {
+        // Query 11: [Zona, Cantidad, Centroide]
+        return row[2] && row[2] !== '--' && row[2].includes(',');
+      }
+      return false;
+    },
+
+    openMapModal(row, rowIndex) {
+      let lat, lng, title, info;
+
+      if (this.selectedQuery === '7') {
+        // Query 7: 5 puntos de entrega más cercanos
+        lat = parseFloat(row[2]);
+        lng = parseFloat(row[3]);
+        title = 'Punto de entrega';
+        info = `${row[0]} - Distancia: ${row[1]} km`;
+      } else if (this.selectedQuery === '11') {
+        // Query 11: Zonas con alta densidad
+        const coords = row[2].split(',');
+        lng = parseFloat(coords[0].trim());
+        lat = parseFloat(coords[1].trim());
+        title = 'Centro de zona';
+        info = `${row[0]} - Pedidos: ${row[1]}`;
+      }
+
+      if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+        this.modalMapData = { lat, lng, title, info };
+        this.showMapModal = true;
+        this.$nextTick(() => {
+          this.initModalMap();
+        });
+      }
+    },
+
+    initModalMap() {
+      if (!this.$refs.modalMapContainer || !this.modalMapData) return;
+
+      // Fix para los iconos de Leaflet
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      });
+
+      // Crear el mapa
+      this.mapInstance = L.map(this.$refs.modalMapContainer).setView(
+        [this.modalMapData.lat, this.modalMapData.lng], 
+        15
+      );
+
+      // Agregar tiles del mapa
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(this.mapInstance);
+
+      // Agregar marcador
+      L.marker([this.modalMapData.lat, this.modalMapData.lng])
+        .addTo(this.mapInstance)
+        .bindPopup(this.modalMapData.info || 'Ubicación')
+        .openPopup();
+    },
+
+    closeMapModal() {
+      this.showMapModal = false;
+      if (this.mapInstance) {
+        this.mapInstance.remove();
+        this.mapInstance = null;
+      }
+      this.modalMapData = null;
     },  
+  },
+
+  beforeUnmount() {
+    if (this.mapInstance) {
+      this.mapInstance.remove();
+    }
   }
 }
 </script>
@@ -701,5 +833,125 @@ export default {
     gap: 0.5rem;
     text-align: center;
   }
+}
+
+/* Estilos para el modal del mapa */
+.map-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.map-modal {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-blue);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.map-modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-blue);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-secondary);
+}
+
+.map-modal-header h3 {
+  color: var(--text-primary);
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--border-blue);
+}
+
+.map-modal-body {
+  padding: 0;
+}
+
+.map-container {
+  height: 400px;
+  width: 100%;
+}
+
+.location-info {
+  padding: 1rem 1.5rem;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-blue);
+}
+
+.location-info p {
+  margin: 0.5rem 0;
+  color: var(--text-primary);
+}
+
+.location-info strong {
+  color: var(--primary-blue);
+}
+
+/* Estilos para la columna de acciones */
+.action-header {
+  text-align: center;
+  width: 120px;
+}
+
+.action-cell {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.view-map-btn {
+  background-color: var(--primary-blue);
+  color: var(--text-primary);
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.view-map-btn:hover:not(:disabled) {
+  background-color: var(--primary-blue-hover);
+  transform: translateY(-1px);
+}
+
+.view-map-btn:disabled {
+  background-color: var(--dark-gray);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.view-map-btn i {
+  font-size: 0.75rem;
 }
 </style>
