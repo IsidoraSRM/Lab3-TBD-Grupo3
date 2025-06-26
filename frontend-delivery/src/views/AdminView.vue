@@ -8,7 +8,7 @@
       </div>
       <div class="header-right">
         <button class="refresh-btn" @click="fetchData">
-          <i class="fas fa-sync-alt"></i> Actualizar
+          Actualizar <i class="fas fa-sync-alt"></i>
         </button>
         <span class="last-updated">Última actualización: {{ lastUpdated }}</span>
       </div>
@@ -19,34 +19,70 @@
       <div class="card query-section">
         <div class="card-header">
           <h2>Consultas Analíticas</h2>
-          <select v-model="selectedQuery" class="query-select">
-            <option value="" disabled>Seleccione una consulta</option>
-            <option value="1">[LAB 1] Cliente que más ha gastado en pedidos entregados.</option>
-            <option value="2">[LAB 1] Productos más pedidos por categoría</option>
-            <option value="3">[LAB 1] Listar las empresas asociadas con más entregas fallidas.</option>
-            <option value="4">[LAB 1] Calcular el tiempo promedio entre pedido y entrega por repartidor.</option>
-            <option value="5">[LAB 1] Obtener los 3 repartidores con mejor rendimiento (basado en entregas y puntuación).</option>
-            <option value="6">[LAB 1] Obtener el medio de pago más usado en pedidos urgentes</option>
-            <option value="7">[LAB 2] 5 puntos de entrega más cercanos a la empresa</option>
-            <option value="8">[LAB 2] Punto de entrega más lejano desde cada empresa</option>
-            <option value="9">[LAB 2] Pedidos cuya ruta cruza más de 2 zonas</option>
-            <option value="12">[LAB 2] Clientes a más de 5km de cualquier empresa/farmacia</option>
-            <option value="13">[LAB 2] ¿Cliente está en zona de cobertura? (buffer 1km)</option>
-            <option value="14">[LAB 2] Distancia recorrida por repartidor en el último mes</option>
-            <option value="10">[LAB 2 EXTRA] Zona a la que pertenece un cliente</option>
-            <option value="11">[LAB 2 EXTRA] Zonas con alta densidad de pedidos</option>
-            <option value="12">[LAB 3] Obtener el promedio de puntuación por empresa o farmacia</option>
-            <option value="13">[LAB 3] Listar las opiniones que contengan palabras clave como 'demora' o 'error'.</option>
-            <option value="14">[LAB 3] Contar cuántos pedidos tienen más de 3 cambios de estado en menos de 10 minutos.</option>
-            <option value="15">[LAB 3] Analizar las rutas más frecuentes de repartidores en los últimos 7 días.</option>
-            <option value="16">[LAB 3] Detectar clientes que realizaron búsquedas sin concretar pedidos (navegación sin compra).</option>
-            <option value="17">[LAB 3] Agrupar opiniones por hora del día para analizar patrones de satisfacción.</option>
-          </select>
-          <input v-if="selectedQuery === '7'" v-model="empresaInput" placeholder="Nombre de la empresa" class="empresa-input" style="margin-left: 1rem; min-width: 200px;" />
-          <input v-if="selectedQuery === '10' || selectedQuery === '13'" v-model="clienteIdInput" placeholder="ID del cliente" class="empresa-input" style="margin-left: 1rem; min-width: 200px;" />
-          <button class="btn-run-query" @click="runQuery" :disabled="!selectedQuery || (selectedQuery === '7' && !empresaInput) || (selectedQuery === '10' && !clienteIdInput)">
-            Ejecutar
-          </button>
+          
+          <!-- Barra de controles en una sola fila -->
+          <div class="query-controls">
+            <!-- Filtro por laboratorio -->
+            <div class="filter-group">
+
+              <select v-model="selectedLabFilter" id="lab-filter" class="filter-select">
+                <option value="ALL">Todas</option>
+                <option value="LAB1">LAB 1</option>
+                <option value="LAB2">LAB 2</option>
+                <option value="LAB3">LAB 3</option>
+                
+              </select>
+              <label for="lab-filter">
+                <i class="fas fa-filter"></i>
+              </label>
+              
+            </div>
+            
+            <!-- Selector de consulta -->
+            <div class="query-group">
+              <div class="query-select-wrapper">
+                <select v-model="selectedQuery" class="query-select">
+                  <option value="" disabled>Seleccione una consulta</option>
+                  <option 
+                    v-for="option in filteredQueryOptions" 
+                    :key="option.value" 
+                    :value="option.value"
+                  >
+                    {{ option.text }}
+                  </option>
+                </select>
+                <i class="fas fa-chart-line query-icon"></i>
+              </div>
+            </div>
+            
+            <!-- Inputs condicionales -->
+            <div class="input-group" v-if="selectedQuery === '7'">
+              <input 
+                v-model="empresaInput" 
+                placeholder="Nombre de la empresa" 
+                class="param-input"
+              />
+            </div>
+            
+            <div class="input-group" v-if="selectedQuery === '10' || selectedQuery === '13'">
+              <input 
+                v-model="clienteIdInput" 
+                placeholder="ID del cliente" 
+                class="param-input"
+              />
+            </div>
+            
+            <!-- Botón ejecutar -->
+            <div class="execute-group">
+              <button 
+                class="btn-run-query" 
+                @click="runQuery" 
+                :disabled="!selectedQuery || (selectedQuery === '7' && !empresaInput) || ((selectedQuery === '10' || selectedQuery === '13') && !clienteIdInput)"
+              >
+                Ejecutar <i class="fas fa-play"></i>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="card-body">
           <div v-if="queryLoading" class="loading-indicator">
@@ -226,6 +262,36 @@ export default {
       showMapModal: false,
       modalMapData: null,
       mapInstance: null,
+      // Variable para filtros
+      selectedLabFilter: 'ALL',
+      // Lista completa de opciones de consulta
+      allQueryOptions: [
+        // LAB 1
+        { value: '1', text: '[LAB 1 C 1] Cliente que más ha gastado en pedidos entregados.', lab: 'LAB1' },
+        { value: '2', text: '[LAB 1 C 2] Productos más pedidos por categoría', lab: 'LAB1' },
+        { value: '3', text: '[LAB 1 C 3] Listar las empresas asociadas con más entregas fallidas.', lab: 'LAB1' },
+        { value: '4', text: '[LAB 1 C 4] Calcular el tiempo promedio entre pedido y entrega por repartidor.', lab: 'LAB1' },
+        { value: '5', text: '[LAB 1 C 5] Obtener los 3 repartidores con mejor rendimiento (basado en entregas y puntuación).', lab: 'LAB1' },
+        { value: '6', text: '[LAB 1 C 6] Obtener el medio de pago más usado en pedidos urgentes', lab: 'LAB1' },
+        
+        // LAB 2
+        { value: '7', text: '[LAB 2 C 1] 5 puntos de entrega más cercanos a la empresa', lab: 'LAB2' },
+        { value: '8', text: '[LAB 2 C 2] Punto de entrega más lejano desde cada empresa', lab: 'LAB2' },
+        { value: '9', text: '[LAB 2 C 3] Pedidos cuya ruta cruza más de 2 zonas', lab: 'LAB2' },
+        { value: '12', text: '[LAB 2 C 4] Clientes a más de 5km de cualquier empresa/farmacia', lab: 'LAB2' },
+        { value: '13', text: '[LAB 2 C 5] ¿Cliente está en zona de cobertura? (buffer 1km)', lab: 'LAB2' },
+        { value: '14', text: '[LAB 2 C 6] Distancia recorrida por repartidor en el último mes', lab: 'LAB2' },
+        { value: '10', text: '[LAB 2 EXTRA 1] Zona a la que pertenece un cliente', lab: 'LAB2' },
+        { value: '11', text: '[LAB 2 EXTRA 2] Zonas con alta densidad de pedidos', lab: 'LAB2' },
+        
+        // LAB 3
+        { value: '15', text: '[LAB 3 C 1] Obtener el promedio de puntuación por empresa o farmacia', lab: 'LAB3' },
+        { value: '16', text: '[LAB 3 C 2] Listar las opiniones que contengan palabras clave como \'demora\' o \'error\'.', lab: 'LAB3' },
+        { value: '17', text: '[LAB 3 C 3] Contar cuántos pedidos tienen más de 3 cambios de estado en menos de 10 minutos.', lab: 'LAB3' },
+        { value: '18', text: '[LAB 3 C 4] Analizar las rutas más frecuentes de repartidores en los últimos 7 días.', lab: 'LAB3' },
+        { value: '19', text: '[LAB 3 C 5] Detectar clientes que realizaron búsquedas sin concretar pedidos (navegación sin compra).', lab: 'LAB3' },
+        { value: '20', text: '[LAB 3 C 6] Agrupar opiniones por hora del día para analizar patrones de satisfacción.', lab: 'LAB3' },
+      ],
     }
   },
   methods: {
@@ -585,6 +651,23 @@ export default {
     },  
   },
 
+  computed: {
+    filteredQueryOptions() {
+      if (this.selectedLabFilter === 'ALL') {
+        return this.allQueryOptions;
+      }
+      return this.allQueryOptions.filter(option => option.lab === this.selectedLabFilter);
+    }
+  },
+
+  watch: {
+    selectedLabFilter() {
+      // Resetear la consulta seleccionada cuando cambie el filtro
+      this.selectedQuery = '';
+      this.queryResults = null;
+    }
+  },
+
   beforeUnmount() {
     if (this.mapInstance) {
       this.mapInstance.remove();
@@ -673,14 +756,118 @@ export default {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border-blue);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .card-header h2 {
   font-size: 1.25rem;
   color: var(--text-primary);
   margin: 0;
+  align-self: flex-start;
+}
+
+/* Estilos para los iconos de Font Awesome */
+.filter-group label i,
+.btn-run-query i,
+.refresh-btn i {
+  margin-left: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.query-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.query-icon {
+  position: absolute;
+  right: 0.75rem;
+  z-index: 1;
+  color: var(--text-secondary);
+  pointer-events: none;
+  font-size: 0.875rem;
+}
+
+.query-select-wrapper .query-select {
+  padding-right: 2.5rem;
+}
+
+.filter-group label {
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Estilos para la barra de controles horizontal */
+.query-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: fit-content;
+}
+
+.filter-select {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-blue);
+  color: var(--text-primary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+  min-width: 100px;
+}
+
+.filter-select:focus {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 2px var(--blue-glow);
+  outline: none;
+}
+
+.query-group {
+  flex: 1;
+  min-width: 250px;
+}
+
+.input-group {
+  min-width: 200px;
+}
+
+.param-input {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-blue);
+  color: var(--text-primary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  width: 100%;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+.param-input:focus {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 2px var(--blue-glow);
+  outline: none;
+}
+
+.param-input::placeholder {
+  color: var(--placeholder-color);
+}
+
+.execute-group {
+  min-width: fit-content;
 }
 
 .card-body {
@@ -716,32 +903,17 @@ export default {
   padding: 0.5rem;
 }
 
-.empresa-input {
+.filter-select option {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-blue);
   color: var(--text-primary);
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  width: 100%;
-  font-size: 0.875rem;
-  transition: all 0.3s ease;
-}
-
-.empresa-input:focus {
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 2px var(--blue-glow);
-  outline: none;
-}
-
-.empresa-input::placeholder {
-  color: var(--placeholder-color);
+  padding: 0.5rem;
 }
 
 .btn-run-query {
   background-color: var(--primary-blue);
   color: var(--text-primary);
   border: none;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 1rem;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.875rem;
@@ -749,6 +921,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  white-space: nowrap;
 }
 
 .btn-run-query:hover {
@@ -829,9 +1002,41 @@ export default {
   }
 
   .card-header {
-    flex-direction: column;
-    gap: 0.5rem;
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .card-header h2 {
+    align-self: center;
     text-align: center;
+  }
+
+  .query-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .filter-group {
+    justify-content: center;
+  }
+
+  .query-group {
+    min-width: auto;
+  }
+
+  .input-group {
+    min-width: auto;
+  }
+
+  .execute-group {
+    display: flex;
+    justify-content: center;
+  }
+
+  .btn-run-query {
+    width: 100%;
+    justify-content: center;
   }
 }
 
