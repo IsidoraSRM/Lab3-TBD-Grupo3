@@ -48,6 +48,11 @@ Este repositorio contiene el proyecto del Lab3 de TBD, desarrollado por el Grupo
 6. Crear una base de datos con el nombre `Lab3` en MongoDB
 7. Ejecutar el archivo `mongoLoad.js` dentro de la consola Mongosh.
 
+   ```bash
+   load("mongoLoad.js")
+
+   ```
+
 ## Instalación y Ejecución del Backend
 
 1. Abir la carpeta backend en Intellij o algún otro editor de codigo.
