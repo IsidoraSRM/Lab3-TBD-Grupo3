@@ -11,12 +11,10 @@ import org.locationtech.jts.geom.Point;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ClienteEntity {
-
     private Long clienteId;
     private String nombre;
     private String direccion;
     private String email;
     private String telefono;
     private Point ubicacion;
-
 }
