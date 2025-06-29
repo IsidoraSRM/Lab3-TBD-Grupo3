@@ -140,7 +140,65 @@ db.historial_repartidores.insertMany([
                 timestamp: ISODate("2025-03-22T14:20:00.000Z")
             }
         ]
-    }
+    },
+
+    {
+    repartidor_id: '1',
+    rutas: [
+      {
+        lat: -33.4489,
+        lng: -70.6693,
+        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // hace 2 días
+      },
+      {
+        lat: -33.45,
+        lng: -70.67,
+        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 15 * 60 * 1000) // +15 min
+      },
+      {
+        lat: -33.4512,
+        lng: -70.6705,
+        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000) // +30 min
+      }
+    ]
+  },
+
+  {
+    repartidor_id: '4',
+    rutas: [
+      {
+        lat: -33.4372,
+        lng: -70.6506,
+        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // hace 1 día
+      },
+      {
+        lat: -33.4385,
+        lng: -70.652,
+        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 15 * 60 * 1000)
+      },
+      {
+        lat: -33.4398,
+        lng: -70.6535,
+        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000)
+      }
+    ]
+  },
+
+  {
+    repartidor_id: '5',
+    rutas: [
+      {
+        lat: -33.415,
+        lng: -70.6083,
+        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // hace 3 días
+      },
+      {
+        lat: -33.4165,
+        lng: -70.6095,
+        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 20 * 60 * 1000)
+      }
+    ]
+  }
 ])
 
 // ============================================

@@ -175,4 +175,10 @@ public class RepartidorRepository {
         );
     }
 
+    public List<Map.Entry<Long, String>> findAllIdAndNombre() {
+        String sql = "SELECT repartidor_id, nombre FROM repartidor";
+        return jdbcTemplate.query(sql, (rs, rowNum) ->
+            Map.entry(rs.getLong("repartidor_id"), rs.getString("nombre"))
+        );
+    }
 }
