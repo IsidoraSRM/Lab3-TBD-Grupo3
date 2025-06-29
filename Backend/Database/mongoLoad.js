@@ -40,21 +40,21 @@ db.opiniones_clientes.insertMany([
     {
         cliente_id: "5",
         empresa_id: "1",
-        comentario: "Perfecto desayuno entregado",
+        comentario: "Perfecto documento entregado",
         puntuacion: 5,
         fecha: ISODate("2025-03-23T07:45:00.000Z")
     },
     {
         cliente_id: "6",
         empresa_id: "2",
-        comentario: "Almuerzo llegó frío",
+        comentario: "Papel llegó en frío",
         puntuacion: 2,
         fecha: ISODate("2025-03-23T13:20:00.000Z")
     },
     {
         cliente_id: "7",
         empresa_id: "1",
-        comentario: "Cena perfecta",
+        comentario: "Documento perfecta",
         puntuacion: 4,
         fecha: ISODate("2025-03-23T19:30:00.000Z")
     },
@@ -210,17 +210,17 @@ db.navegacion_usuarios.insertMany([
         eventos: [
             {
                 tipo: "busqueda",
-                valor: "paracetamol",
+                valor: "Informe",
                 timestamp: ISODate("2025-03-20T09:05:00.000Z")
             },
             {
                 tipo: "click",
-                valor: "producto_123",
+                valor: "Certificado",
                 timestamp: ISODate("2025-03-20T09:06:00.000Z")
             },
             {
                 tipo: "compra",
-                valor: "producto_123",
+                valor: "Documento",
                 timestamp: ISODate("2025-03-20T09:10:00.000Z")
             }
         ]
@@ -230,22 +230,22 @@ db.navegacion_usuarios.insertMany([
         eventos: [
             {
                 tipo: "busqueda",
-                valor: "aspirina",
+                valor: "Documento 1",
                 timestamp: ISODate("2025-03-21T10:00:00.000Z")
             },
             {
                 tipo: "click",
-                valor: "producto_456",
+                valor: "Certificado de Difunción",
                 timestamp: ISODate("2025-03-21T10:02:00.000Z")
             },
             {
                 tipo: "click",
-                valor: "producto_789",
+                valor: "Documento 2",
                 timestamp: ISODate("2025-03-21T10:05:00.000Z")
             },
             {
                 tipo: "compra",
-                valor: "producto_789",
+                valor: "Documento 3",
                 timestamp: ISODate("2025-03-21T10:08:00.000Z")
             }
         ]
@@ -255,12 +255,12 @@ db.navegacion_usuarios.insertMany([
         eventos: [
             {
                 tipo: "busqueda",
-                valor: "vitaminas",
+                valor: "Categoria Certificados",
                 timestamp: ISODate("2025-03-22T08:00:00.000Z")
             },
             {
                 tipo: "filtro",
-                valor: "categoria_salud",
+                valor: "categoria_Informes",
                 timestamp: ISODate("2025-03-22T08:02:00.000Z")
             },
             {
@@ -275,7 +275,7 @@ db.navegacion_usuarios.insertMany([
         eventos: [
             {
                 tipo: "busqueda",
-                valor: "antibioticos",
+                valor: "Licencias",
                 timestamp: ISODate("2025-03-22T19:00:00.000Z")
             },
             {
