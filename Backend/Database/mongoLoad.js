@@ -10,49 +10,49 @@ use('Lab3');
 // ============================================
 db.opiniones_clientes.insertMany([
     {
-        cliente_id: "C001",
+        cliente_id: "1",
         empresa_id: "1",
         comentario: "Excelente servicio, rápido y seguro.",
         puntuacion: 5,
         fecha: ISODate("2025-03-20T10:15:00.000Z")
     },
     {
-        cliente_id: "C002",
+        cliente_id: "2",
         empresa_id: "2",
         comentario: "Demora en la entrega y mal embalaje.",
         puntuacion: 2,
         fecha: ISODate("2025-03-21T14:22:00.000Z")
     },
     {
-        cliente_id: "C003",
+        cliente_id: "3",
         empresa_id: "1",
         comentario: "Servicio matutino excelente",
         puntuacion: 4,
         fecha: ISODate("2025-03-22T08:30:00.000Z")
     },
     {
-        cliente_id: "C004",
+        cliente_id: "4",
         empresa_id: "2",
         comentario: "Entrega nocturna tardía",
         puntuacion: 3,
         fecha: ISODate("2025-03-22T20:15:00.000Z")
     },
     {
-        cliente_id: "C005",
+        cliente_id: "5",
         empresa_id: "1",
         comentario: "Perfecto desayuno entregado",
         puntuacion: 5,
         fecha: ISODate("2025-03-23T07:45:00.000Z")
     },
     {
-        cliente_id: "C006",
+        cliente_id: "6",
         empresa_id: "2",
         comentario: "Almuerzo llegó frío",
         puntuacion: 2,
         fecha: ISODate("2025-03-23T13:20:00.000Z")
     },
     {
-        cliente_id: "C007",
+        cliente_id: "7",
         empresa_id: "1",
         comentario: "Cena perfecta",
         puntuacion: 4,
@@ -60,21 +60,21 @@ db.opiniones_clientes.insertMany([
     },
     // Datos adicionales para mejores análisis
     {
-        cliente_id: "C008",
+        cliente_id: "8",
         empresa_id: "1",
         comentario: "Delivery muy rápido en la mañana",
         puntuacion: 5,
         fecha: ISODate("2025-03-24T09:00:00.000Z")
     },
     {
-        cliente_id: "C009",
+        cliente_id: "9",
         empresa_id: "2",
         comentario: "Servicio regular, puede mejorar",
         puntuacion: 3,
         fecha: ISODate("2025-03-24T15:30:00.000Z")
     },
     {
-        cliente_id: "C010",
+        cliente_id: "10",
         empresa_id: "1",
         comentario: "Excelente atención al cliente",
         puntuacion: 5,
@@ -206,7 +206,7 @@ db.historial_repartidores.insertMany([
 // ============================================
 db.navegacion_usuarios.insertMany([
     {
-        cliente_id: "C001",
+        cliente_id: "1",
         eventos: [
             {
                 tipo: "busqueda",
@@ -226,7 +226,7 @@ db.navegacion_usuarios.insertMany([
         ]
     },
     {
-        cliente_id: "C002",
+        cliente_id: "2",
         eventos: [
             {
                 tipo: "busqueda",
@@ -251,7 +251,7 @@ db.navegacion_usuarios.insertMany([
         ]
     },
     {
-        cliente_id: "C003",
+        cliente_id: "3",
         eventos: [
             {
                 tipo: "busqueda",
@@ -271,7 +271,7 @@ db.navegacion_usuarios.insertMany([
         ]
     },
     {
-        cliente_id: "C004",
+        cliente_id: "4",
         eventos: [
             {
                 tipo: "busqueda",
