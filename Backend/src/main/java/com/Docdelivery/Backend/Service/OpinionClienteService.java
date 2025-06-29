@@ -2,6 +2,7 @@ package com.Docdelivery.Backend.Service;
 
 import com.Docdelivery.Backend.Entity.OpinionClienteEntity;
 import com.Docdelivery.Backend.Repository.OpinionClienteRepository;
+import com.Docdelivery.Backend.dto.OpinionClienteDTO;
 import com.Docdelivery.Backend.dto.OpinionesPorHoraDto;
 import com.Docdelivery.Backend.dto.PromedioPuntuacionEmpresaDto;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,7 @@ public class OpinionClienteService {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-    
+
     @Autowired
     private MongoTemplate mongoTemplate;
 
@@ -35,31 +36,31 @@ public class OpinionClienteService {
                 .count().as("total_opiniones"),
             Aggregation.sort(org.springframework.data.domain.Sort.Direction.DESC, "promedio_puntuacion")
         );
-        
+
         // 2. Ejecutar agregación
         AggregationResults<Map> results = mongoTemplate.aggregate(
             aggregation, "opiniones_clientes", Map.class
         );
-        
+
         List<Map> resultadosMongo = results.getMappedResults();
-        
+
         // 3. Debug
         System.out.println("Resultados MongoDB con MongoTemplate:");
         for (int i = 0; i < resultadosMongo.size(); i++) {
             Map<String, Object> doc = resultadosMongo.get(i);
             System.out.println("Elemento " + i + ": " + doc);
         }
-        
+
         // 4. Mapear resultados
         return resultadosMongo.stream()
             .map(doc -> {
                 String empresaId = (String) doc.get("_id");
                 Double promedio = ((Number) doc.get("promedio_puntuacion")).doubleValue();
                 Integer total = ((Number) doc.get("total_opiniones")).intValue();
-                
+
                 // Buscar nombre de empresa en PostgreSQL
                 String nombreEmpresa = obtenerNombreEmpresa(empresaId);
-                
+
                 return new PromedioPuntuacionEmpresaDto(
                     empresaId,
                     nombreEmpresa,
@@ -77,32 +78,32 @@ public class OpinionClienteService {
             Aggregation.project()
                 .andExpression("hour(fecha)").as("hora")
                 .and("puntuacion").as("puntuacion"),
-            
+
             // Agrupar por hora
             Aggregation.group("hora")
                 .avg("puntuacion").as("promedio_puntuacion")
                 .count().as("total_opiniones")
                 .max("puntuacion").as("puntuacion_maxima")
                 .min("puntuacion").as("puntuacion_minima"),
-            
+
             // Ordenar por hora
             Aggregation.sort(org.springframework.data.domain.Sort.Direction.ASC, "_id")
         );
-        
+
         // Ejecutar agregación
         AggregationResults<Map> results = mongoTemplate.aggregate(
             aggregation, "opiniones_clientes", Map.class
         );
-        
+
         List<Map> resultadosMongo = results.getMappedResults();
-        
+
         // Debug
         System.out.println("Opiniones agrupadas por hora:");
         for (int i = 0; i < resultadosMongo.size(); i++) {
             Map<String, Object> doc = resultadosMongo.get(i);
             System.out.println("Elemento " + i + ": " + doc);
         }
-        
+
         // Mapear resultados
         return resultadosMongo.stream()
             .map(doc -> {
@@ -111,7 +112,7 @@ public class OpinionClienteService {
                 Integer total = ((Number) doc.get("total_opiniones")).intValue();
                 Double maxima = ((Number) doc.get("puntuacion_maxima")).doubleValue();
                 Double minima = ((Number) doc.get("puntuacion_minima")).doubleValue();
-                
+
                 return new OpinionesPorHoraDto(
                     hora,
                     promedio,
@@ -123,7 +124,22 @@ public class OpinionClienteService {
             .collect(Collectors.toList());
     }
 
+    public List<OpinionClienteDTO> buscarOpinionesConPalabrasClave() {
+        return opinionRepo.findByPalabrasClave()
+                .stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
 
+    private OpinionClienteDTO convertToDto(OpinionClienteEntity entity) {
+        return new OpinionClienteDTO(
+                entity.getCliente_id(),
+                entity.getEmpresa_id(),
+                entity.getComentario(),
+                entity.getPuntuacion(),
+                entity.getFecha()
+        );
+    }
 
 
     private String obtenerNombreEmpresa(String empresaId) {

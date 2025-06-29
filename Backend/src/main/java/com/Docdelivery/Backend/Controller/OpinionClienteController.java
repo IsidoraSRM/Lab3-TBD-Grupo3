@@ -2,6 +2,7 @@ package com.Docdelivery.Backend.Controller;
 
 import com.Docdelivery.Backend.Entity.OpinionClienteEntity;
 import com.Docdelivery.Backend.Repository.OpinionClienteRepository;
+import com.Docdelivery.Backend.dto.OpinionClienteDTO;
 import com.Docdelivery.Backend.dto.OpinionesPorHoraDto;
 import com.Docdelivery.Backend.dto.PromedioPuntuacionEmpresaDto;
 import com.Docdelivery.Backend.Service.OpinionClienteService;
@@ -44,6 +45,12 @@ public class OpinionClienteController {
     @Secured({"ROLE_ADMIN", "ROLE_CLIENTE"})
     public List<OpinionesPorHoraDto> getPatronesPorHora() {
         return analyticsService.getOpinionesPorHora();
+    }
+
+    @GetMapping("/palabras-clave")
+    @Secured({"ROLE_ADMIN", "ROLE_CLIENTE"})
+    public List<OpinionClienteDTO> getOpinionesConPalabrasClave() {
+        return analyticsService.buscarOpinionesConPalabrasClave();
     }
 
 

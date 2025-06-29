@@ -47,7 +47,7 @@ db.opiniones_clientes.insertMany([
     {
         cliente_id: "6",
         empresa_id: "2",
-        comentario: "Papel llegó en frío",
+        comentario: "Papel llegó en frío, con error en la temperatura",
         puntuacion: 2,
         fecha: ISODate("2025-03-23T13:20:00.000Z")
     },
