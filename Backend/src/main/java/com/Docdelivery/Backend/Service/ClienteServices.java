@@ -22,6 +22,8 @@ public class ClienteServices {
     //cliente por idUsuario
     public Optional<Long> findClienteIdByUsuarioId(Long usuarioId) {return clienteRepository.findClienteIdByUsuarioId(usuarioId);}
 
+    public ClienteEntity findClienteById(Long id){return clienteRepository.findById(id).get();}
+
     public void actualizarCliente(Long id) {
         ClienteEntity cliente = clienteRepository.findById(id).get();
         clienteRepository.update(cliente);

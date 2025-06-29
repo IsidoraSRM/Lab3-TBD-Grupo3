@@ -206,6 +206,8 @@ import ClientSummary from '@/components/ClientSummary.vue';
 import TopCompany from '@/components/TopCompany.vue';
 import orderService from '@/services/orderService';
 import empresaService from '@/services/empresaService';
+import { analyticsService } from '@/services/analyticsService';
+import { rutasFrecuentesService } from '@/services/rutasFrecuentesService';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -556,6 +558,56 @@ export default {
           ]);
         }
 
+        else if (this.selectedQuery === '15') {
+          // LAB 3 C1: Promedio de puntuación por empresa
+          const response = await analyticsService.getPromedioPorEmpresa();
+          console.log('Respuesta del backend:', response);
+
+          this.queryTitle = 'Promedio de puntuación por empresa';
+          this.queryHeaders = ['ID Empresa', 'Nombre Empresa', 'Promedio Puntuación', 'Total Opiniones'];
+
+          this.queryResults = response.map(item => [
+            item.empresaId || '--',
+            item.nombreEmpresa || '--',
+            item.promedioPuntuacion ? item.promedioPuntuacion.toFixed(2) : '--',
+            item.totalOpiniones || 0
+          ]);
+        }
+
+        else if (this.selectedQuery === '18') {
+          // LAB 3 C4: Rutas más frecuentes de repartidores (últimos 7 días)
+          const response = await rutasFrecuentesService.getTopTramosFrecuentes(10);
+          console.log('Respuesta del backend:', response);
+
+          this.queryTitle = 'Top 10 tramos más frecuentes de repartidores (últimos 7 días)';
+          this.queryHeaders = ['ID Repartidor', 'Nombre Repartidor', 'Desde (Lat, Lng)', 'Hasta (Lat, Lng)', 'Frecuencia'];
+
+          this.queryResults = response.map(item => [
+            item.repartidorId || '--',
+            item.nombreRepartidor || '--',
+            `(${item.latDesde}, ${item.lngDesde})`,
+            `(${item.latHasta}, ${item.lngHasta})`,
+            item.frecuencia || 0
+          ]);
+        }
+
+        else if (this.selectedQuery === '20') {
+          // LAB 3 C6: Patrones de opiniones por hora
+          const response = await analyticsService.getPatronesPorHora();
+          console.log('Respuesta del backend:', response);
+
+          this.queryTitle = 'Patrones de satisfacción por hora del día';
+          this.queryHeaders = ['Hora', 'Promedio Puntuación', 'Total Opiniones', 'Puntuación Máxima', 'Puntuación Mínima'];
+
+          this.queryResults = response.map(item => [
+            `${item.hora}:00`,
+            item.promedioPuntuacion ? item.promedioPuntuacion.toFixed(2) : '--',
+            item.totalOpiniones || 0,
+            item.puntuacionMaxima ? item.puntuacionMaxima.toFixed(1) : '--',
+            item.puntuacionMinima ? item.puntuacionMinima.toFixed(1) : '--'
+          ]);
+        }
+
       } catch (error) {
         console.error('Error al obtener los datos:', error);
         this.queryError = 'Hubo un problema al cargar los datos. Intenta de nuevo más tarde.';
@@ -571,7 +623,7 @@ export default {
     // Métodos para el mapa
     hasGeoData() {
       // Consultas que contienen datos georreferenciados con coordenadas válidas
-      return ['7', '11'].includes(this.selectedQuery);
+      return ['7', '11', '18'].includes(this.selectedQuery);
     },
 
     hasValidCoordinates(row) {
@@ -581,6 +633,9 @@ export default {
       } else if (this.selectedQuery === '11') {
         // Query 11: [Zona, Cantidad, Centroide]
         return row[2] && row[2] !== '--' && row[2].includes(',');
+      } else if (this.selectedQuery === '18') {
+        // Query 18: [ID Repartidor, Nombre, Desde, Hasta, Frecuencia]
+        return row[2] && row[3] && row[2] !== '--' && row[3] !== '--';
       }
       return false;
     },
@@ -601,6 +656,43 @@ export default {
         lat = parseFloat(coords[1].trim());
         title = 'Centro de zona';
         info = `${row[0]} - Pedidos: ${row[1]}`;
+      } else if (this.selectedQuery === '18') {
+        // Query 18: Rutas frecuentes - mostrar ruta completa (origen y destino)
+        const coordsDesde = row[2].match(/\(([-\d.]+),\s*([-\d.]+)\)/);
+        const coordsHasta = row[3].match(/\(([-\d.]+),\s*([-\d.]+)\)/);
+        
+        if (coordsDesde && coordsHasta) {
+          const latDesde = parseFloat(coordsDesde[1]);
+          const lngDesde = parseFloat(coordsDesde[2]);
+          const latHasta = parseFloat(coordsHasta[1]);
+          const lngHasta = parseFloat(coordsHasta[2]);
+          
+          // Calcular el punto central para centrar el mapa
+          lat = (latDesde + latHasta) / 2;
+          lng = (lngDesde + lngHasta) / 2;
+          
+          title = 'Ruta frecuente';
+          info = `${row[1]} - Frecuencia: ${row[4]}`;
+          
+          // Pasar las coordenadas completas para dibujar la ruta
+          this.modalMapData = { 
+            lat, 
+            lng, 
+            title, 
+            info,
+            routeData: {
+              desde: { lat: latDesde, lng: lngDesde },
+              hasta: { lat: latHasta, lng: lngHasta },
+              repartidor: row[1],
+              frecuencia: row[4]
+            }
+          };
+          this.showMapModal = true;
+          this.$nextTick(() => {
+            this.initModalMap();
+          });
+          return;
+        }
       }
 
       if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
@@ -634,11 +726,74 @@ export default {
         attribution: '© OpenStreetMap contributors'
       }).addTo(this.mapInstance);
 
-      // Agregar marcador
-      L.marker([this.modalMapData.lat, this.modalMapData.lng])
+      // Si es una ruta (consulta 18), dibujar la ruta completa
+      if (this.modalMapData.routeData) {
+        const { desde, hasta, repartidor, frecuencia } = this.modalMapData.routeData;
+        
+        // Crear iconos personalizados para origen y destino
+        const origenIcon = L.divIcon({
+          className: 'custom-marker origen-marker',
+          html: '<i class="fas fa-play-circle" style="color: #10b981; font-size: 20px;"></i>',
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+        
+        const destinoIcon = L.divIcon({
+          className: 'custom-marker destino-marker',
+          html: '<i class="fas fa-flag-checkered" style="color: #ef4444; font-size: 20px;"></i>',
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+        
+        // Agregar marcadores de origen y destino
+        L.marker([desde.lat, desde.lng], { icon: origenIcon })
+          .addTo(this.mapInstance)
+          .bindPopup(`<strong>🚀 Origen</strong><br>Repartidor: ${repartidor}<br>Coordenadas: (${desde.lat}, ${desde.lng})`);
+        
+        L.marker([hasta.lat, hasta.lng], { icon: destinoIcon })
+          .addTo(this.mapInstance)
+          .bindPopup(`<strong>🏁 Destino</strong><br>Repartidor: ${repartidor}<br>Coordenadas: (${hasta.lat}, ${hasta.lng})`);
+        
+        // Dibujar línea entre origen y destino
+        const rutaLine = L.polyline([
+          [desde.lat, desde.lng],
+          [hasta.lat, hasta.lng]
+        ], {
+          color: '#3b82f6',
+          weight: 4,
+          opacity: 0.8,
+          dashArray: '10, 5'
+        }).addTo(this.mapInstance);
+        
+        // Popup en el centro de la línea
+        const centerLat = (desde.lat + hasta.lat) / 2;
+        const centerLng = (desde.lng + hasta.lng) / 2;
+        
+        L.marker([centerLat, centerLng], {
+          icon: L.divIcon({
+            className: 'route-info-marker',
+            html: `<div style="background: #3b82f6; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><i class="fas fa-route"></i> ${frecuencia}</div>`,
+            iconSize: [50, 25],
+            iconAnchor: [25, 12]
+          })
+        })
         .addTo(this.mapInstance)
-        .bindPopup(this.modalMapData.info || 'Ubicación')
-        .openPopup();
+        .bindPopup(`<strong>📊 Ruta Frecuente</strong><br>Repartidor: ${repartidor}<br>Frecuencia: ${frecuencia} vez(es)<br>Distancia aprox: ${this.calculateDistance(desde.lat, desde.lng, hasta.lat, hasta.lng)} km`);
+        
+        // Ajustar la vista para mostrar toda la ruta
+        const bounds = L.latLngBounds([
+          [desde.lat, desde.lng],
+          [hasta.lat, hasta.lng]
+        ]);
+        this.mapInstance.fitBounds(bounds, { padding: [30, 30] });
+        
+      } else {
+        // Para otras consultas, mostrar un marcador simple
+        L.marker([this.modalMapData.lat, this.modalMapData.lng])
+          .addTo(this.mapInstance)
+          .bindPopup(this.modalMapData.info || 'Ubicación')
+          .openPopup();
+      }
     },
 
     closeMapModal() {
@@ -648,6 +803,23 @@ export default {
         this.mapInstance = null;
       }
       this.modalMapData = null;
+    },
+
+    // Método para calcular distancia entre dos puntos (fórmula de Haversine)
+    calculateDistance(lat1, lng1, lat2, lng2) {
+      const R = 6371; // Radio de la Tierra en km
+      const dLat = this.degreesToRadians(lat2 - lat1);
+      const dLng = this.degreesToRadians(lng2 - lng1);
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(this.degreesToRadians(lat1)) * Math.cos(this.degreesToRadians(lat2)) * 
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return (R * c).toFixed(2);
+    },
+
+    degreesToRadians(degrees) {
+      return degrees * (Math.PI/180);
     },  
   },
 
@@ -1158,5 +1330,53 @@ export default {
 
 .view-map-btn i {
   font-size: 0.75rem;
+}
+
+/* Estilos para marcadores personalizados del mapa */
+:deep(.custom-marker) {
+  background: transparent !important;
+  border: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.origen-marker) {
+  filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+}
+
+:deep(.destino-marker) {
+  filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+}
+
+:deep(.route-info-marker) {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Estilos para el loading y estados vacíos */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  opacity: 0.5;
 }
 </style>

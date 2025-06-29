@@ -14,103 +14,35 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/navegacion-usuarios")
+@RequestMapping("/api/navegacion")
+@CrossOrigin(origins = "*")
 public class NavegacionUsuariosController {
 
 	@Autowired
-	private NavegacionUsuariosRepository navegacionUsuariosRepository;
-	@Autowired
-	private NavegacionUsuariosServices navegacionUsuariosServices;
+	private NavegacionUsuariosServices navegacionService;
 
-	@GetMapping("/")
-	@Secured({"ROLE_ADMIN", "ROLE_REPARTIDOR"})
-	public List<NavegacionUsuariosEntity> findAll() {
-		return navegacionUsuariosRepository.findAll();
-	}
-
-	@PostMapping("/")
-	@Secured({"ROLE_ADMIN", "ROLE_REPARTIDOR"})
-	public NavegacionUsuariosEntity addNavegacionUsuario(@RequestBody NavegacionUsuariosEntity navegacionUsuariosEntity) {
-		return navegacionUsuariosRepository.save(navegacionUsuariosEntity);
-	}
+	/**
+	 * ENDPOINT PRINCIPAL: Consulta 5 del enunciado
+	 * Detectar clientes que realizaron búsquedas sin concretar pedidos
+	 */
 	@GetMapping("/clientes-sin-compra")
 	public ResponseEntity<Map<String, Object>> getClientesSinCompra() {
 		try {
-			List<ClienteSinCompraDTO> clientes = navegacionUsuariosServices.detectarClientesSinCompra();
+			List<ClienteSinCompraDTO> clientes = navegacionService.detectarClientesSinCompra();
 
 			Map<String, Object> response = new HashMap<>();
 			response.put("success", true);
-			response.put("message", "Consulta ejecutada exitosamente");
+			response.put("mensaje", "Clientes con búsquedas sin compra encontrados");
 			response.put("total_clientes", clientes.size());
 			response.put("clientes", clientes);
+			response.put("consulta", "5. Detectar clientes que realizaron búsquedas sin concretar pedidos (navegación sin compra)");
 
 			return ResponseEntity.ok(response);
 
 		} catch (Exception e) {
 			Map<String, Object> errorResponse = new HashMap<>();
 			errorResponse.put("success", false);
-			errorResponse.put("message", "Error al ejecutar la consulta: " + e.getMessage());
-
-			return ResponseEntity.internalServerError().body(errorResponse);
-		}
-	}
-	@GetMapping("/clientes-sin-compra/alternativo")
-	public ResponseEntity<Map<String, Object>> getClientesSinCompraAlternativo() {
-		try {
-			List<ClienteSinCompraDTO> clientes = navegacionUsuariosServices.detectarClientesSinCompraAlternativo();
-
-			Map<String, Object> response = new HashMap<>();
-			response.put("success", true);
-			response.put("message", "Consulta alternativa ejecutada exitosamente");
-			response.put("total_clientes", clientes.size());
-			response.put("clientes", clientes);
-			response.put("metodo", "Java Stream Processing");
-
-			return ResponseEntity.ok(response);
-
-		} catch (Exception e) {
-			Map<String, Object> errorResponse = new HashMap<>();
-			errorResponse.put("success", false);
-			errorResponse.put("message", "Error al ejecutar la consulta alternativa: " + e.getMessage());
-
-			return ResponseEntity.internalServerError().body(errorResponse);
-		}
-	}
-	@GetMapping("/estadisticas-navegacion")
-	public ResponseEntity<Map<String, Object>> getEstadisticasNavegacion() {
-		try {
-			List<ClienteSinCompraDTO> clientesSinCompra = navegacionUsuariosServices.detectarClientesSinCompra();
-
-			// Calcular estadísticas
-			int totalClientes = clientesSinCompra.size();
-			int totalBusquedas = clientesSinCompra.stream()
-					.mapToInt(ClienteSinCompraDTO::getCantidadBusquedas)
-					.sum();
-			int totalClicks = clientesSinCompra.stream()
-					.mapToInt(ClienteSinCompraDTO::getCantidadClicks)
-					.sum();
-
-			double promedioBusquedasPorCliente = totalClientes > 0 ?
-					(double) totalBusquedas / totalClientes : 0;
-
-			Map<String, Object> estadisticas = new HashMap<>();
-			estadisticas.put("total_clientes_sin_compra", totalClientes);
-			estadisticas.put("total_busquedas", totalBusquedas);
-			estadisticas.put("total_clicks", totalClicks);
-			estadisticas.put("promedio_busquedas_por_cliente", Math.round(promedioBusquedasPorCliente * 100.0) / 100.0);
-			estadisticas.put("conversion_rate", "0% (ningún cliente completó compra)");
-
-			Map<String, Object> response = new HashMap<>();
-			response.put("success", true);
-			response.put("estadisticas", estadisticas);
-			response.put("detalle_clientes", clientesSinCompra);
-
-			return ResponseEntity.ok(response);
-
-		} catch (Exception e) {
-			Map<String, Object> errorResponse = new HashMap<>();
-			errorResponse.put("success", false);
-			errorResponse.put("message", "Error al calcular estadísticas: " + e.getMessage());
+			errorResponse.put("error", "Error al obtener clientes sin compra: " + e.getMessage());
 
 			return ResponseEntity.internalServerError().body(errorResponse);
 		}

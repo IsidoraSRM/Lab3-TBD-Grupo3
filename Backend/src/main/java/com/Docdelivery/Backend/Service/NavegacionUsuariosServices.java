@@ -1,5 +1,7 @@
 package com.Docdelivery.Backend.Service;
 
+import com.Docdelivery.Backend.Entity.ClienteEntity;
+import com.Docdelivery.Backend.Repository.ClienteRepository;
 import com.Docdelivery.Backend.dto.ClienteSinCompraDTO;
 import com.Docdelivery.Backend.Entity.NavegacionUsuariosEntity;
 import com.Docdelivery.Backend.Repository.NavegacionUsuariosRepository;
@@ -10,8 +12,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,135 +22,113 @@ public class NavegacionUsuariosServices {
     private NavegacionUsuariosRepository navegacionRepository;
 
     @Autowired
-    private MongoTemplate mongoTemplate;
+    private ClienteRepository clienteRepository;
 
     /**
-     * Detectar clientes que realizaron búsquedas sin concretar pedidos
-     * Implementación usando MongoDB Aggregation Framework
+     * MÉTODO PRINCIPAL: Detectar clientes con búsquedas sin compra
      */
     public List<ClienteSinCompraDTO> detectarClientesSinCompra() {
+        try {
+            // 1. Obtener TODAS las navegaciones de MongoDB
+            List<NavegacionUsuariosEntity> navegaciones = navegacionRepository.findAll();
+            System.out.println("Total navegaciones en MongoDB: " + navegaciones.size());
 
-        // Agregación MongoDB para detectar clientes con búsquedas pero sin compras
-        Aggregation aggregation = Aggregation.newAggregation(
-                // Etapa 1: Desenrollar el array de eventos
-                Aggregation.unwind("eventos"),
+            // 2. Filtrar solo las que tienen búsquedas SIN compras
+            List<NavegacionUsuariosEntity> navegacionesSinCompra = navegaciones.stream()
+                    .filter(this::tieneBusquedaSinCompra)
+                    .collect(Collectors.toList());
 
-                // Etapa 2: Agrupar por cliente y tipo de evento
-                Aggregation.group("cliente_id")
-                        .push("eventos").as("todosEventos")
-                        .addToSet("eventos.tipo").as("tiposEventos")
-                        .count().as("totalEventos"),
+            System.out.println("Navegaciones con búsqueda sin compra: " + navegacionesSinCompra.size());
 
-                // Etapa 3: Filtrar solo clientes que tienen búsquedas pero NO tienen compras
-                Aggregation.match(
-                        Criteria.where("tiposEventos").in("busqueda")
-                                .and("tiposEventos").not().in("compra")
-                ),
+            // 3. Convertir a DTO obteniendo datos de PostgreSQL
+            List<ClienteSinCompraDTO> resultado = new ArrayList<>();
 
-                // Etapa 4: Proyectar los campos necesarios
-                Aggregation.project()
-                        .andExpression("_id").as("clienteId")
-                        .andExpression("todosEventos").as("eventos")
-                        .andExpression("totalEventos").as("totalEventos")
-        );
+            for (NavegacionUsuariosEntity navegacion : navegacionesSinCompra) {
+                try {
+                    // Convertir cliente_id a Long
+                    Long clienteId = Long.parseLong(navegacion.getClienteId().trim());
+                    System.out.println("Procesando cliente ID: " + clienteId);
 
-        // Ejecutar la agregación
-        List<Map> resultados = mongoTemplate.aggregate(
-                aggregation, "navegacion_usuarios", Map.class
-        ).getMappedResults();
+                    // Buscar cliente en PostgreSQL sin cargar ubicación
+                    Optional<ClienteEntity> clienteOpt = clienteRepository.findByIdSinUbicacion(clienteId);
 
-        // Procesar los resultados y crear los DTOs
-        return resultados.stream()
-                .map(this::procesarResultadoAggregation)
-                .collect(Collectors.toList());
+
+                    if (clienteOpt.isPresent()) {
+                        ClienteEntity cliente = clienteOpt.get();
+                        System.out.println("Cliente encontrado: " + cliente.getNombre());
+
+                        // Crear DTO
+                        ClienteSinCompraDTO dto = crearDTO(cliente, navegacion.getEventos());
+                        resultado.add(dto);
+                    } else {
+                        System.out.println("Cliente no encontrado en PostgreSQL: " + clienteId);
+                    }
+
+                } catch (NumberFormatException e) {
+                    System.err.println("Error convirtiendo cliente_id: " + navegacion.getClienteId());
+                }
+            }
+
+            System.out.println("Total resultado final: " + resultado.size());
+            return resultado;
+
+        } catch (Exception e) {
+            System.err.println("Error en detectarClientesSinCompra: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
     }
 
     /**
-     * Método alternativo usando programación Java (menos eficiente pero más legible)
+     * Verificar si tiene búsquedas pero NO tiene compras
      */
-    public List<ClienteSinCompraDTO> detectarClientesSinCompraAlternativo() {
-        List<NavegacionUsuariosEntity> todasNavegaciones = navegacionRepository.findAll();
+    private boolean tieneBusquedaSinCompra(NavegacionUsuariosEntity navegacion) {
+        if (navegacion.getEventos() == null || navegacion.getEventos().isEmpty()) {
+            return false;
+        }
 
-        return todasNavegaciones.stream()
-                .filter(this::tieneNavegacionSinCompra)
-                .map(this::convertirADTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Procesar resultado de la agregación MongoDB
-     */
-    private ClienteSinCompraDTO procesarResultadoAggregation(Map resultado) {
-        String clienteId = (String) resultado.get("clienteId");
-        List<Map> eventos = (List<Map>) resultado.get("eventos");
-
-        // Contar búsquedas y clicks
-        long busquedas = eventos.stream()
-                .filter(evento -> "busqueda".equals(evento.get("tipo")))
+        // Contar búsquedas
+        long busquedas = navegacion.getEventos().stream()
+                .filter(evento -> "busqueda".equals(evento.getTipo()))
                 .count();
 
-        long clicks = eventos.stream()
-                .filter(evento -> "click".equals(evento.get("tipo")))
+        // Contar compras
+        long compras = navegacion.getEventos().stream()
+                .filter(evento -> "compra".equals(evento.getTipo()))
                 .count();
 
-        // Obtener términos buscados
-        List<String> terminosBuscados = eventos.stream()
-                .filter(evento -> "busqueda".equals(evento.get("tipo")))
-                .map(evento -> (String) evento.get("valor"))
-                .distinct()
-                .collect(Collectors.toList());
+        boolean resultado = busquedas > 0 && compras == 0;
 
-        // Obtener última búsqueda
-        LocalDateTime ultimaBusqueda = eventos.stream()
-                .filter(evento -> "busqueda".equals(evento.get("tipo")))
-                .map(evento -> (LocalDateTime) evento.get("timestamp"))
-                .max(LocalDateTime::compareTo)
-                .orElse(null);
+        System.out.println("Cliente " + navegacion.getClienteId() +
+                " - Búsquedas: " + busquedas +
+                ", Compras: " + compras +
+                ", Sin compra: " + resultado);
 
-        return new ClienteSinCompraDTO(
-                clienteId,
-                (int) busquedas,
-                (int) clicks,
-                ultimaBusqueda,
-                terminosBuscados
-        );
+        return resultado;
     }
 
     /**
-     * Verificar si una navegación tiene búsquedas pero no compras
+     * Crear DTO con estadísticas de navegación
      */
-    private boolean tieneNavegacionSinCompra(NavegacionUsuariosEntity navegacion) {
-        if (navegacion.getEventos() == null) return false;
-
-        boolean tieneBusqueda = navegacion.getEventos().stream()
-                .anyMatch(evento -> "busqueda".equals(evento.getTipo()));
-
-        boolean tieneCompra = navegacion.getEventos().stream()
-                .anyMatch(evento -> "compra".equals(evento.getTipo()));
-
-        return tieneBusqueda && !tieneCompra;
-    }
-
-    /**
-     * Convertir NavegacionUsuario a DTO
-     */
-    private ClienteSinCompraDTO convertirADTO(NavegacionUsuariosEntity navegacion) {
-        List<NavegacionUsuariosEntity.Evento> eventos = navegacion.getEventos();
-
+    private ClienteSinCompraDTO crearDTO(ClienteEntity cliente, List<NavegacionUsuariosEntity.Evento> eventos) {
+        // Contar búsquedas
         int cantidadBusquedas = (int) eventos.stream()
                 .filter(e -> "busqueda".equals(e.getTipo()))
                 .count();
 
+        // Contar clicks
         int cantidadClicks = (int) eventos.stream()
                 .filter(e -> "click".equals(e.getTipo()))
                 .count();
 
+        // Obtener términos buscados únicos
         List<String> terminosBuscados = eventos.stream()
                 .filter(e -> "busqueda".equals(e.getTipo()))
                 .map(NavegacionUsuariosEntity.Evento::getValor)
                 .distinct()
                 .collect(Collectors.toList());
 
+        // Fecha de última búsqueda
         LocalDateTime ultimaBusqueda = eventos.stream()
                 .filter(e -> "busqueda".equals(e.getTipo()))
                 .map(NavegacionUsuariosEntity.Evento::getTimestamp)
@@ -157,11 +136,64 @@ public class NavegacionUsuariosServices {
                 .orElse(null);
 
         return new ClienteSinCompraDTO(
-                navegacion.getClienteId(),
+                cliente.getClienteId(),
+                cliente.getNombre(),
+                cliente.getEmail(),
+                cliente.getTelefono(),
                 cantidadBusquedas,
                 cantidadClicks,
                 ultimaBusqueda,
                 terminosBuscados
         );
+    }
+
+    /**
+     * MÉTODO DE VERIFICACIÓN: Para debug
+     */
+    public Map<String, Object> verificarDatos() {
+        Map<String, Object> info = new HashMap<>();
+
+        try {
+            // MongoDB
+            List<NavegacionUsuariosEntity> navegaciones = navegacionRepository.findAll();
+            info.put("mongodb_total", navegaciones.size());
+
+            List<Map<String, Object>> mongoInfo = new ArrayList<>();
+            for (NavegacionUsuariosEntity nav : navegaciones) {
+                Map<String, Object> navInfo = new HashMap<>();
+                navInfo.put("cliente_id", nav.getClienteId());
+                navInfo.put("eventos_total", nav.getEventos() != null ? nav.getEventos().size() : 0);
+
+                if (nav.getEventos() != null) {
+                    List<String> tipos = nav.getEventos().stream()
+                            .map(NavegacionUsuariosEntity.Evento::getTipo)
+                            .collect(Collectors.toList());
+                    navInfo.put("tipos_eventos", tipos);
+                    navInfo.put("tiene_busqueda", tipos.contains("busqueda"));
+                    navInfo.put("tiene_compra", tipos.contains("compra"));
+                }
+
+                mongoInfo.add(navInfo);
+            }
+            info.put("mongodb_data", mongoInfo);
+
+            // PostgreSQL
+            List<ClienteEntity> clientes = clienteRepository.findAll();
+            info.put("postgresql_total", clientes.size());
+
+            List<Map<String, Object>> pgInfo = new ArrayList<>();
+            for (ClienteEntity cliente : clientes) {
+                Map<String, Object> clienteInfo = new HashMap<>();
+                clienteInfo.put("cliente_id", cliente.getClienteId());
+                clienteInfo.put("nombre", cliente.getNombre());
+                pgInfo.add(clienteInfo);
+            }
+            info.put("postgresql_data", pgInfo);
+
+        } catch (Exception e) {
+            info.put("error", e.getMessage());
+        }
+
+        return info;
     }
 }

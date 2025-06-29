@@ -10,7 +10,7 @@ import java.util.List;
 @Repository
 public interface NavegacionUsuariosRepository extends MongoRepository<NavegacionUsuariosEntity, String> {
 
-    // Metodo para encontrar navegación por cliente
+    // Método para encontrar navegación por cliente
     List<NavegacionUsuariosEntity> findByClienteId(String clienteId);
 
     // Usando agregación personalizada (se implementará en el service)
