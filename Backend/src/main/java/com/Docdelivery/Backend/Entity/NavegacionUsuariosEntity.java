@@ -3,8 +3,10 @@ package com.Docdelivery.Backend.Entity;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -12,16 +14,21 @@ import java.util.List;
 @NoArgsConstructor
 @Document(collection = "navegacion_usuarios")
 public class NavegacionUsuariosEntity {
+
 	@Id
 	private String id;
-	private List<Eventos> eventosList;
 
+	@Field("cliente_id")
+	private String clienteId;
+
+	private List<Evento> eventos;
+	// Clase interna para eventos
 	@Data
 	@AllArgsConstructor
 	@NoArgsConstructor
-	public static class Eventos {
+	public static class Evento {
 		private String tipo;
 		private String valor;
-		private Instant timestamp;
+		private LocalDateTime timestamp;
 	}
 }
