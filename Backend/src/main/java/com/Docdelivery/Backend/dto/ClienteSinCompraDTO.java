@@ -11,7 +11,10 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ClienteSinCompraDTO {
-    private String clienteId;
+    private Long clienteId; // Cambiado a Long para coincidir con PostgreSQL
+    private String nombre; // Nuevo campo del cliente
+    private String email; // Nuevo campo del cliente
+    private String telefono; // Nuevo campo del cliente
     private int cantidadBusquedas;
     private int cantidadClicks;
     private LocalDateTime ultimaBusqueda;

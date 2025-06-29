@@ -36,6 +36,20 @@ public class  ClienteRepository implements ClienteRepositoryCustom {
             );
         }
     }
+    private static class ClienteRowMapperSinUbicacion implements RowMapper<ClienteEntity> {
+        @Override
+        public ClienteEntity mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new ClienteEntity(
+                    rs.getLong("cliente_id"),
+                    rs.getString("nombre"),
+                    rs.getString("direccion"),
+                    rs.getString("email"),
+                    rs.getString("telefono"),
+                    null // No cargamos la ubicación
+            );
+        }
+    }
+
 
     // Insertar cliente en la base de datos
     public void save(ClienteEntity cliente) {
@@ -52,6 +66,16 @@ public class  ClienteRepository implements ClienteRepositoryCustom {
             return Optional.empty(); // Manejar caso donde el cliente no existe
         }
     }
+
+    public Optional<ClienteEntity> findByIdSinUbicacion(Long id) {
+        String sql = "SELECT cliente_id, nombre, direccion, email, telefono FROM cliente WHERE cliente_id = ?";
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(sql, new ClienteRowMapperSinUbicacion(), id));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
 
     // Obtener todos los clientes
     public List<ClienteEntity> findAll() {

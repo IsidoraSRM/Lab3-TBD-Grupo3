@@ -8,10 +8,9 @@ import org.springframework.data.mongodb.core.mapping.Field;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
-
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @Document(collection = "navegacion_usuarios")
 public class NavegacionUsuariosEntity {
 
@@ -22,10 +21,9 @@ public class NavegacionUsuariosEntity {
 	private String clienteId;
 
 	private List<Evento> eventos;
-	// Clase interna para eventos
 	@Data
-	@AllArgsConstructor
 	@NoArgsConstructor
+	@AllArgsConstructor
 	public static class Evento {
 		private String tipo;
 		private String valor;
