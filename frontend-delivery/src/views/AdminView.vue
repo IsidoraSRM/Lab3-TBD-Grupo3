@@ -579,11 +579,12 @@ export default {
           console.log('Respuesta del backend:', response);
 
           this.queryTitle = 'Opiniones con palabras clave "demora" o "error"';
-          this.queryHeaders = ['ID Cliente', 'ID Empresa', 'Comentario', 'Puntuación', 'Fecha'];
+          this.queryHeaders = ['ID Cliente', 'Nombre Cliente', 'ID Empresa', 'Comentario', 'Puntuación', 'Fecha'];
 
           this.queryResults = response.map(item => [
-            item.clienteId || '--',
-            item.empresaId || '--',
+            item.cliente_id || '--',
+            item.nombreCliente || '--',
+            item.empresa_id || '--',
             item.comentario || '--',
             item.puntuacion || '--',
             item.fecha ? new Date(item.fecha).toLocaleString() : '--'
@@ -592,13 +593,19 @@ export default {
 
 
         else if (this.selectedQuery === '17') {
-          const response = await analyticsService.getPedidosConMuchosCambios();
-          console.log('Pedidos con >3 cambios <10min:', response);
+          try {
+            const response = await analyticsService.getPedidosConMuchosCambios();
+            console.log('Pedidos con >3 cambios <10min:', response);
 
-          this.queryTitle = 'Pedidos con más de 3 cambios de estado en menos de 10 minutos';
-          this.queryHeaders = ['ID Pedido'];
-
-          this.queryResults = response.map(pedidoId => [pedidoId]);
+            this.queryTitle = 'Pedidos con más de 3 cambios en menos de 10 minutos';
+            this.queryHeaders = ['Fecha', 'ID Pedido', 'Cambios'];
+            this.queryResults = [['--', 'No hay datos', '--']];
+          } catch (error) {
+            console.error('Error en consulta 17:', error);
+            this.queryTitle = 'Pedidos con más de 3 cambios en menos de 10 minutos';
+            this.queryHeaders = ['Fecha', 'ID Pedido', 'Cambios'];
+            this.queryResults = [['--', 'No hay datos', '--']];
+          }
         }
 
 
@@ -607,9 +614,36 @@ export default {
           console.log('Clientes que no compraron:', response);
 
           this.queryTitle = 'Clientes que navegaron pero no concretaron compra';
-          this.queryHeaders = ['ID Cliente'];
+          this.queryHeaders = [
+            'ID Cliente', 
+            'Nombre', 
+            'Email', 
+            'Teléfono', 
+            'Búsquedas', 
+            'Clicks', 
+            'Última Búsqueda', 
+            'Términos Buscados'
+          ];
 
-          this.queryResults = response.map(clienteId => [clienteId]);
+          // Extraer solo los datos del array clientes
+          const clientes = response.clientes || [];
+          this.queryResults = clientes.map(cliente => [
+            cliente.clienteId || '--',
+            cliente.nombre || '--',
+            cliente.email || '--',
+            cliente.telefono || '--',
+            cliente.cantidadBusquedas || 0,
+            cliente.cantidadClicks || 0,
+            cliente.ultimaBusqueda ? new Date(cliente.ultimaBusqueda).toLocaleString('es-CL', { 
+              timeZone: 'America/Santiago',
+              year: 'numeric', 
+              month: '2-digit', 
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            }) : '--',
+            cliente.terminosBuscados ? cliente.terminosBuscados.join(', ') : '--'
+          ]);
         }
         
         else if (this.selectedQuery === '18') {

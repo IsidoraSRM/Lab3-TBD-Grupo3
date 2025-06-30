@@ -39,9 +39,9 @@ export const analyticsService = {
   },
 
 
-  async getPedidosConMuchosCambios() {
+async getPedidosConMuchosCambios() {
   try {
-    const response = await axios.get(`${API_URL}/opiniones/pedidos-cambios-rapidos`, {
+    const response = await axios.get(`${API_URL}/logs-pedidos/cambios-rapidos`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         'Content-Type': 'application/json'
@@ -49,14 +49,14 @@ export const analyticsService = {
     });
     return response.data;
   } catch (error) {
-    console.error('Error al obtener pedidos con cambios rápidos:', error);
+    console.error('Error al obtener pedidos con muchos cambios en poco tiempo:', error);
     throw error;
   }
 },
 
 async getClientesSinCompra() {
   try {
-    const response = await axios.get(`${API_URL}/opiniones/clientes-sin-compra`, {
+    const response = await axios.get(`${API_URL}/navegacion/clientes-sin-compra`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         'Content-Type': 'application/json'
@@ -84,6 +84,9 @@ async getClientesSinCompra() {
     throw error;
   }
 }
+
+
+
 
 
 
