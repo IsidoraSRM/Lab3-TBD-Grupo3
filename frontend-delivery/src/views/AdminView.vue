@@ -574,6 +574,44 @@ export default {
           ]);
         }
 
+        else if (this.selectedQuery === '16') {
+          const response = await analyticsService.getOpinionesConPalabrasClave();
+          console.log('Respuesta del backend:', response);
+
+          this.queryTitle = 'Opiniones con palabras clave "demora" o "error"';
+          this.queryHeaders = ['ID Cliente', 'ID Empresa', 'Comentario', 'Puntuación', 'Fecha'];
+
+          this.queryResults = response.map(item => [
+            item.clienteId || '--',
+            item.empresaId || '--',
+            item.comentario || '--',
+            item.puntuacion || '--',
+            item.fecha ? new Date(item.fecha).toLocaleString() : '--'
+          ]);
+        }
+
+
+        else if (this.selectedQuery === '17') {
+          const response = await analyticsService.getPedidosConMuchosCambios();
+          console.log('Pedidos con >3 cambios <10min:', response);
+
+          this.queryTitle = 'Pedidos con más de 3 cambios de estado en menos de 10 minutos';
+          this.queryHeaders = ['ID Pedido'];
+
+          this.queryResults = response.map(pedidoId => [pedidoId]);
+        }
+
+
+        else if (this.selectedQuery === '19') {
+          const response = await analyticsService.getClientesSinCompra();
+          console.log('Clientes que no compraron:', response);
+
+          this.queryTitle = 'Clientes que navegaron pero no concretaron compra';
+          this.queryHeaders = ['ID Cliente'];
+
+          this.queryResults = response.map(clienteId => [clienteId]);
+        }
+        
         else if (this.selectedQuery === '18') {
           // LAB 3 C4: Rutas más frecuentes de repartidores (últimos 7 días)
           const response = await rutasFrecuentesService.getTopTramosFrecuentes(10);

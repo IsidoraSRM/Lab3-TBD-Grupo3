@@ -36,5 +36,55 @@ export const analyticsService = {
       console.error('Error al obtener patrones por hora:', error);
       throw error;
     }
+  },
+
+
+  async getPedidosConMuchosCambios() {
+  try {
+    const response = await axios.get(`${API_URL}/opiniones/pedidos-cambios-rapidos`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener pedidos con cambios rápidos:', error);
+    throw error;
   }
+},
+
+async getClientesSinCompra() {
+  try {
+    const response = await axios.get(`${API_URL}/opiniones/clientes-sin-compra`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener clientes sin compra:', error);
+    throw error;
+  }
+},
+
+
+  async getOpinionesConPalabrasClave() {
+  try {
+    const response = await axios.get(`${API_URL}/opiniones/palabras-clave`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener opiniones con palabras clave:', error);
+    throw error;
+  }
+}
+
+
+
 };
