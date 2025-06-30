@@ -10,3 +10,5 @@ public interface OpinionClienteRepository extends MongoRepository<OpinionCliente
     @Query("{ 'comentario': { $regex: '.*demora.*|.*error.*', $options: 'i' }}")
     List<OpinionClienteEntity> findByPalabrasClave();
 }
+
+

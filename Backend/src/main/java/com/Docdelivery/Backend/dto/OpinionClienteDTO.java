@@ -9,6 +9,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class OpinionClienteDTO {
 	private String cliente_id;
+	private String nombreCliente;
 	private String empresa_id;
 	private String comentario;
 	private int puntuacion;

@@ -1,6 +1,8 @@
 package com.Docdelivery.Backend.Service;
 
+import com.Docdelivery.Backend.Entity.ClienteEntity;
 import com.Docdelivery.Backend.Entity.OpinionClienteEntity;
+import com.Docdelivery.Backend.Repository.ClienteRepository;
 import com.Docdelivery.Backend.Repository.OpinionClienteRepository;
 import com.Docdelivery.Backend.dto.OpinionClienteDTO;
 import com.Docdelivery.Backend.dto.OpinionesPorHoraDto;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,6 +24,9 @@ public class OpinionClienteService {
 
     @Autowired
     private OpinionClienteRepository opinionRepo;
+
+    @Autowired
+    private ClienteRepository clienteRepository;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -124,21 +130,37 @@ public class OpinionClienteService {
             .collect(Collectors.toList());
     }
 
+
+    private String obtenerNombreCliente(String clienteId) {
+        try {
+            String sql = "SELECT nombre FROM cliente WHERE cliente_id = ?";
+            Long clienteIdLong = Long.parseLong(clienteId);
+            return jdbcTemplate.queryForObject(sql, String.class, clienteIdLong);
+        } catch (NumberFormatException e) {
+            return "ID de cliente inválido";
+        } catch (Exception e) {
+            return "Cliente no encontrado";
+        }
+    }
+
+
+    public OpinionClienteDTO convertToDto(OpinionClienteEntity entity) {
+        OpinionClienteDTO dto = new OpinionClienteDTO();
+        dto.setCliente_id(entity.getCliente_id());
+        dto.setEmpresa_id(entity.getEmpresa_id());
+        dto.setComentario(entity.getComentario());
+        dto.setPuntuacion(entity.getPuntuacion());
+        dto.setFecha(entity.getFecha());
+        dto.setNombreCliente(obtenerNombreCliente(entity.getCliente_id()));
+        return dto;
+    }
+
+
     public List<OpinionClienteDTO> buscarOpinionesConPalabrasClave() {
         return opinionRepo.findByPalabrasClave()
                 .stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
-    }
-
-    private OpinionClienteDTO convertToDto(OpinionClienteEntity entity) {
-        return new OpinionClienteDTO(
-                entity.getCliente_id(),
-                entity.getEmpresa_id(),
-                entity.getComentario(),
-                entity.getPuntuacion(),
-                entity.getFecha()
-        );
     }
 
 
