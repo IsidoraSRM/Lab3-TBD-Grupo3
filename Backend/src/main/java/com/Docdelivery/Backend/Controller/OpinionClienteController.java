@@ -52,4 +52,6 @@ public class OpinionClienteController {
     public List<OpinionClienteDTO> getOpinionesConPalabrasClave() {
         return analyticsService.buscarOpinionesConPalabrasClave();
     }
+
+
 }
